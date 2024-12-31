@@ -1,7 +1,4 @@
 // Implement member functions for SimplicialComplexOperators class.
-
-
-//Micron: haven't coded in C++ in a while so I'm including a lot of basic notes in my comments
 #include "simplicial-complex-operators.h"
 
 using namespace geometrycentral;
@@ -69,12 +66,11 @@ SparseMatrix<size_t> SimplicialComplexOperators::buildVertexEdgeAdjacencyMatrix(
     // renaming the triplet type to T for simplicity
     typedef Eigen::Triplet<size_t> T; 
     std::vector<T> tripletList;
-    //tripletList.reserve(mesh->nVertices()*mesh->nEdges());
     
     // get num vertices and num edges and make sparse mat of that size
     SparseMatrix<size_t> spMat(mesh->nEdges(), mesh->nVertices());
     
-    // for each edge look at adjacent vertex and add to that row
+    // for each edge look at adjacent vertices and add to that row
     for(Edge e: mesh->edges()){
         for(Vertex v: e.adjacentVertices()){
             tripletList.push_back(T(e.getIndex(), v.getIndex(), 1));
@@ -82,21 +78,7 @@ SparseMatrix<size_t> SimplicialComplexOperators::buildVertexEdgeAdjacencyMatrix(
     }
 
     spMat.setFromTriplets(tripletList.begin(), tripletList.end());
-    /*
-    typedef Eigen::Triplet<double> T;
-    std::vector<T> tripletList;
-    tripletList.reserve(estimation_of_entries);
-    for(...)
-    {
-    // ...
-    tripletList.push_back(T(i,j,v_ij));
-    }
-    SparseMatrixType mat(rows,cols);
-    mat.setFromTriplets(tripletList.begin(), tripletList.end());
-    // mat is ready to go!
-    */
 
-    // return identityMatrix<size_t>(1); // placeholder
     return spMat;
 }
 
@@ -117,8 +99,7 @@ SparseMatrix<size_t> SimplicialComplexOperators::buildFaceEdgeAdjacencyMatrix() 
     // get num vertices and num edges and make sparse mat of that size
     SparseMatrix<size_t> spMat(mesh->nFaces(), mesh->nEdges());
     
-    // for each edge, access adjacent vertices and add to that row
-    // for each vertex look at adjacent edges and add to that row
+    // for each face look at adjacent edges and add to that row
     for(Face f: mesh->faces()){
         for(Edge e: f.adjacentEdges()){
             tripletList.push_back(T(f.getIndex(), e.getIndex(), 1));
@@ -182,12 +163,11 @@ Vector<size_t> SimplicialComplexOperators::buildFaceVector(const MeshSubset& sub
  * Returns: The star of the given subset.
  */
 MeshSubset SimplicialComplexOperators::star(const MeshSubset& subset) const {
-    // M: def star: star(subset) = collection of all simplices that contain subset. 
     // the star(subset) is the collection of all simplices of the complex (ie. the mesh) that contain ANY simplex in subset
    
     MeshSubset Star;
 
-    // for each vertex in subset, add them and adjacent edges and faces (use FE@EV mat to get adjacent faces).
+    // add each vertex in subset
     Vector<size_t> vertices = buildVertexVector(subset);
     for(size_t i = 0; i <mesh->nVertices(); ++i){
         if (vertices[i]) Star.addVertex(i);
@@ -248,7 +228,7 @@ MeshSubset SimplicialComplexOperators::closure(const MeshSubset& subset) const {
  * Returns: The link of the given subset.
  */
 MeshSubset SimplicialComplexOperators::link(const MeshSubset& subset) const {
-    // M: link = closure(star(subset)) setminus star(closure(subset))
+    //link = closure(star(subset)) setminus star(closure(subset))
     MeshSubset clofst = closure(star(subset));
     MeshSubset stofcl = star(closure(subset));
     clofst.deleteSubset(stofcl);
@@ -283,8 +263,8 @@ int SimplicialComplexOperators::isPureComplex(const MeshSubset& subset) const {
     Vector<size_t> edges = buildEdgeVector(subset);
     Vector<size_t> faces = buildFaceVector(subset);
 
-    //if there are any faces, it will need to be a pure 2-complex
     int degree=0;
+    //if there are any faces, it will need to be a pure 2-complex
     if(subset.faces.size() > 0){
          degree = 2;
         //check that each edge in subset is adjacent to a face in subset
@@ -294,7 +274,6 @@ int SimplicialComplexOperators::isPureComplex(const MeshSubset& subset) const {
         }
         Vector<size_t> edgesadjfacesinsubset = (faces.transpose() * A1).transpose();
         //if edges adjacent to faces in subset is not equal to subset's EdgeVector, it is not pure
-        //if(!edgesadjfacesinsubset.isApprox(edges)) return -1;
         if(!(edgesadjfacesinsubset.count() == subset.edges.size())) return -1;
     }
     //else if there are no faces but any edges, it will need to be a pure 1-complex
@@ -337,7 +316,7 @@ MeshSubset SimplicialComplexOperators::boundary(const MeshSubset& subset) const 
         subsetadjmat = subsetadjmat *(vertices.asDiagonal());
         subsetadjmat = subsetadjmat.pruned();
         for(size_t v: subset.vertices){
-            //if 
+            //if there is just one adjacent edge, it is a boundary vertex 
             if(subsetadjmat.innerVector(v).nonZeros()==1)
                 boundary.addVertex(v);
         }
@@ -349,6 +328,7 @@ MeshSubset SimplicialComplexOperators::boundary(const MeshSubset& subset) const 
         SparseMatrix<size_t> subsetadjmat = faces.asDiagonal()*A1*edges.asDiagonal();
         subsetadjmat = subsetadjmat.pruned();
         for(size_t e: subset.edges){
+            //if there is just one adjacent face, it is a boundary edge 
             if(subsetadjmat.innerVector(e).nonZeros()==1){
                 boundary.addEdge(e);
                 //and add the vertices of each boundary edge
