@@ -79,9 +79,20 @@ double VertexPositionGeometry::totalArea() const {
  * Returns: The cotan of the angle opposite the given halfedge.
  */
 double VertexPositionGeometry::cotan(Halfedge he) const {
-
+    // halfedges oriented from tip to tail
+    //angle is between he.next and he.next.next
+    // cotangent in terms of dot and cross product is (a*b)/||axb||
+    //confused bc i don't see coordinate info for vertices yet...
     // TODO
-    return 0; // placeholder
+    Halfedge a = he.next();
+    Halfedge b = a.next();
+
+    Vector3 edge1 = this->inputVertexPositions[a.tailVertex()]-this->inputVertexPositions[a.tipVertex()];
+    Vector3 edge2 = this->inputVertexPositions[b.tipVertex()]-this->inputVertexPositions[b.tailVertex()];
+    
+    double cotan = dot(edge1, edge2)/cross(edge1,edge2).norm();
+
+    return cotan; 
 }
 
 /*
@@ -91,10 +102,17 @@ double VertexPositionGeometry::cotan(Halfedge he) const {
  * Returns: The barycentric dual area of the given vertex.
  */
 double VertexPositionGeometry::barycentricDualArea(Vertex v) const {
+    // 1/3 * sum over areas of all the triangles ijk touching i
+    double areasum = 0;
+    for(Face triangle: v.adjacentFaces()){
+        areasum += faceArea(triangle);
+    }
 
-    // TODO
-    return 0; // placeholder
+    areasum /= 3;
+    
+    return areasum;
 }
+
 
 /*
  * Computes the angle (in radians) at a given corner. (Do NOT use built-in function for this)

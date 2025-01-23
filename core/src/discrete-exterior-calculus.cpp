@@ -41,9 +41,16 @@ namespace surface {
  * Returns: A sparse diagonal matrix representing the Hodge operator that can be applied to discrete 0-forms.
  */
 SparseMatrix<double> VertexPositionGeometry::buildHodgeStar0Form() const {
-
-    // TODO
-    return identityMatrix<double>(1); // placeholder
+    // compute regions of the dual faces to each vertex and 
+    //SparseMatrix<double> H0(mesh.nVertices(),1);
+    SparseMatrix<double> H0(mesh.nVertices(),mesh.nVertices());
+    std::vector<Eigen::Triplet<double>> tripletlist;
+    for (Vertex v: mesh.vertices()){
+        tripletlist.push_back(Eigen::Triplet<double>(v.getIndex(),v.getIndex(), barycentricDualArea(v)));
+    }
+    H0.setFromTriplets(tripletlist.begin(), tripletlist.end());
+    //return identityMatrix<double>(1); // placeholder
+    return H0;
 }
 
 /*
@@ -53,9 +60,17 @@ SparseMatrix<double> VertexPositionGeometry::buildHodgeStar0Form() const {
  * Returns: A sparse diagonal matrix representing the Hodge operator that can be applied to discrete 1-forms.
  */
 SparseMatrix<double> VertexPositionGeometry::buildHodgeStar1Form() const {
+    SparseMatrix<double> H1(mesh.nEdges(),mesh.nEdges());
 
+    std::vector<Eigen::Triplet<double>> tripletlist;
+    for (Edge e: mesh.edges()){
+        double cotanweight_e = edgeCotanWeight(e);
+        tripletlist.push_back(Eigen::Triplet<double>(e.getIndex(),e.getIndex(), cotanweight_e));
+    }
+    H1.setFromTriplets(tripletlist.begin(), tripletlist.end());
+    //return identityMatrix<double>(1); // placeholder
+    return H1;   
     // TODO
-    return identityMatrix<double>(1); // placeholder
 }
 
 /*
