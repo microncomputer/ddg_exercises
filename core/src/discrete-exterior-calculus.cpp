@@ -29,6 +29,7 @@
 
 #include "geometrycentral/surface/vertex_position_geometry.h"
 
+
 namespace geometrycentral {
 namespace surface {
 
@@ -49,7 +50,6 @@ SparseMatrix<double> VertexPositionGeometry::buildHodgeStar0Form() const {
         tripletlist.push_back(Eigen::Triplet<double>(v.getIndex(),v.getIndex(), barycentricDualArea(v)));
     }
     H0.setFromTriplets(tripletlist.begin(), tripletlist.end());
-    //return identityMatrix<double>(1); // placeholder
     return H0;
 }
 
@@ -64,13 +64,12 @@ SparseMatrix<double> VertexPositionGeometry::buildHodgeStar1Form() const {
 
     std::vector<Eigen::Triplet<double>> tripletlist;
     for (Edge e: mesh.edges()){
+        //found edgecotanweight in the source code for vertexpositiongeometry 
         double cotanweight_e = edgeCotanWeight(e);
         tripletlist.push_back(Eigen::Triplet<double>(e.getIndex(),e.getIndex(), cotanweight_e));
     }
     H1.setFromTriplets(tripletlist.begin(), tripletlist.end());
-    //return identityMatrix<double>(1); // placeholder
     return H1;   
-    // TODO
 }
 
 /*
@@ -80,9 +79,26 @@ SparseMatrix<double> VertexPositionGeometry::buildHodgeStar1Form() const {
  * Returns: A sparse diagonal matrix representing the Hodge operator that can be applied to discrete 2-forms.
  */
 SparseMatrix<double> VertexPositionGeometry::buildHodgeStar2Form() const {
+    SparseMatrix<double> H2(mesh.nFaces(),mesh.nFaces());
 
-    // TODO
-    return identityMatrix<double>(1); // placeholder
+    std::vector<Eigen::Triplet<double>> tripletlist;
+    for (Face f: mesh.faces()){
+        // size of dual face (a vertex) over size of face
+        // 1/2 (sum|ei|)
+        double face_area = faceArea(f);
+        /*
+        double dualarea = 0;
+        for(Edge e: f.adjacentEdges()){
+            dualarea += edgeLength(e);
+        }
+        dualarea = dualarea/2;
+        */
+
+        tripletlist.push_back(Eigen::Triplet<double>(f.getIndex(),f.getIndex(), 1/face_area));
+    }
+    H2.setFromTriplets(tripletlist.begin(), tripletlist.end());
+    
+    return H2;  
 }
 
 /*
@@ -92,9 +108,25 @@ SparseMatrix<double> VertexPositionGeometry::buildHodgeStar2Form() const {
  * Returns: A sparse matrix representing the exterior derivative that can be applied to discrete 0-forms.
  */
 SparseMatrix<double> VertexPositionGeometry::buildExteriorDerivative0Form() const {
+ 
+    // for a discrete 0-form phi (values at vertices), the derivative is a 1-form. 
+    // it is the integrals of dphi along edges.
+    // ie. add up the values of applying the input differential form to the k-form
+    // returns a k+1 form, 1-form in this case
+    /* steps:
+    1. make a ExV matrix 
+    */
+    
+    //it's ExV because it is mapping values from V to values from E 
+    SparseMatrix<double> d0(mesh.nEdges(),mesh.nVertices());
+    std::vector<Eigen::Triplet<double>> tripletlist;
 
-    // TODO
-    return identityMatrix<double>(1); // placeholder
+    for(Edge e: mesh.edges()){
+        tripletlist.push_back(Eigen::Triplet<double>(e.getIndex(), e.halfedge().tipVertex().getIndex(), 1));
+        tripletlist.push_back(Eigen::Triplet<double>(e.getIndex(), e.halfedge().tailVertex().getIndex(), -1));
+    }
+    d0.setFromTriplets(tripletlist.begin(), tripletlist.end());
+    return d0;
 }
 
 /*
@@ -104,9 +136,19 @@ SparseMatrix<double> VertexPositionGeometry::buildExteriorDerivative0Form() cons
  * Returns: A sparse matrix representing the exterior derivative that can be applied to discrete 1-forms.
  */
 SparseMatrix<double> VertexPositionGeometry::buildExteriorDerivative1Form() const {
+    SparseMatrix<double> d1(mesh.nFaces(),mesh.nEdges());
+    std::vector<Eigen::Triplet<double>> tripletlist;
 
-    // TODO
-    return identityMatrix<double>(1); // placeholder
+    for(Face f: mesh.faces()){
+        for(Edge e: f.adjacentEdges()){
+            if(e.halfedge().face() == f) //it's stored as 1 or 0
+                tripletlist.push_back(Eigen::Triplet<double>(f.getIndex(),e.getIndex(), 1));
+            else
+                tripletlist.push_back(Eigen::Triplet<double>(f.getIndex(),e.getIndex(), -1));
+        }
+    }
+    d1.setFromTriplets(tripletlist.begin(), tripletlist.end());
+    return d1;
 }
 
 } // namespace surface
